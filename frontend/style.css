@@ -1,0 +1,292 @@
+﻿body {
+  background: #111;
+  color: #eee;
+  font-family: sans-serif;
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 标题 */
+h1 {
+  margin-top: 0;
+  text-align: center;
+}
+
+/* 顶部控制栏 */
+.controls {
+  margin-bottom: 10px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.control-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.control-block label {
+  font-size: 14px;
+}
+
+.control-block input[type="range"] {
+  vertical-align: middle;
+}
+
+/* 棋盘 */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(16, 32px);
+  grid-template-rows: repeat(16, 32px);
+  gap: 4px;
+  margin-top: 20px;
+}
+
+.cell {
+  width: 32px;
+  height: 32px;
+  background: #1b1b1b;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  font-weight: bold;
+  font-size: 18px;
+
+  color: transparent;
+  filter: brightness(var(--b, 1));
+  transition: filter 0.1s linear, background 0.1s linear;
+}
+
+.cell:hover {
+  background: #333;
+}
+
+.cell.flagged {
+  background: #d84a4a !important;
+  color: white !important;
+  font-size: 20px;
+  z-index: 5;
+}
+
+.cell.revealed {
+  background: #2b2b2b !important;
+  cursor: default;
+  color: white;
+}
+
+.cell.mine-hit {
+  background: #ff4a4a !important;
+  color: white !important;
+  font-size: 22px;
+}
+
+/* 数字颜色 */
+.num-1 { color: #4da3ff !important; }
+.num-2 { color: #52d273 !important; }
+.num-3 { color: #ff4d4d !important; }
+.num-4 { color: #b084f3 !important; }
+.num-5 { color: #d7a05f !important; }
+.num-6 { color: #50c4c9 !important; }
+.num-7 { color: #000 !important; }
+.num-8 { color: #888 !important; }
+
+/* 控制面板 */
+.sound-panel {
+  margin-top: 24px;
+  padding: 16px;
+  background: #181818;
+  border-radius: 12px;
+}
+
+/* 参数保存/加载/重置按钮 */
+.params-control {
+  margin-bottom: 16px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.param-btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #333;
+  color: #eee;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.param-btn:hover {
+  background: #444;
+  transform: translateY(-2px);
+}
+
+.param-btn:active {
+  transform: translateY(0);
+}
+
+.save-btn {
+  background: #4CAF50;
+}
+
+.save-btn:hover {
+  background: #45a049;
+}
+
+.load-btn {
+  background: #2196F3;
+}
+
+.load-btn:hover {
+  background: #0b7dda;
+}
+
+.reset-btn {
+  background: #ff9800;
+}
+
+.reset-btn:hover {
+  background: #e68900;
+}
+
+/* 配置文件管理 */
+.config-management {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #222;
+  border-radius: 8px;
+  border-left: 4px solid #2196F3;
+}
+
+.config-management h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #2196F3;
+}
+
+.config-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.config-select {
+  flex: 1;
+  min-width: 150px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: #333;
+  color: #eee;
+  border: 1px solid #555;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.config-select:focus {
+  outline: none;
+  border-color: #2196F3;
+  box-shadow: 0 0 4px rgba(33, 150, 243, 0.5);
+}
+
+.config-btn {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  background: #444;
+  color: #eee;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.config-btn:hover {
+  background: #555;
+  transform: translateY(-1px);
+}
+
+.config-btn:active {
+  transform: translateY(0);
+}
+
+.config-btn.load-btn {
+  background: #2196F3;
+}
+
+.config-btn.load-btn:hover {
+  background: #0b7dda;
+}
+
+.config-btn.delete-btn {
+  background: #f44336;
+}
+
+.config-btn.delete-btn:hover {
+  background: #da190b;
+}
+
+.config-btn.export-btn {
+  background: #4CAF50;
+}
+
+.config-btn.export-btn:hover {
+  background: #45a049;
+}
+
+.config-btn.import-btn {
+  background: #ff9800;
+  display: inline-block;
+}
+
+.config-btn.import-btn:hover {
+  background: #e68900;
+}
+
+.sound-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.param-group {
+  min-width: 200px;
+}
+
+.param-group h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.param-group label {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.param-group input[type="range"],
+.param-group select {
+  width: 180px;
+  margin: 0 6px;
+  padding: 4px;
+  border-radius: 4px;
+  background: #222;
+  color: #eee;
+  border: 1px solid #444;
+}
+
+@media (max-width: 700px) {
+  .sound-row {
+    flex-direction: column;
+  }
+}
