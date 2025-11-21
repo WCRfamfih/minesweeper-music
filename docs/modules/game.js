@@ -1,17 +1,32 @@
+// ✅ 前端版 Minesweeper —— 不使用任何后端 API
 import { flashCell } from "./ripple.js";
 import { setGrid } from "./state.js";
+import { createGrid } from "./grid.js";
 
-const API = "http://localhost:3000";
-let grid = [];
+// 我们在前端维护一个 grid 实例
+let game = null;
 
+// 默认参数，16x16，40 雷
+const ROWS = 16;
+const COLS = 16;
+const MINES = 40;
+
+// ======================================================
+// 初始化游戏（替代原 loadGame）
+// ======================================================
 export async function loadGame() {
-  const res = await fetch(API + "/game/state");
-  const data = await res.json();
-  setGrid(data);    // ⭐ 同步给 sequencer
-  grid = data;
+  if (!game) {
+    // 第一次进入游戏，创建前端 grid 逻辑
+    game = createGrid(ROWS, COLS, MINES);
+  }
+
   renderGrid();
+  setGrid(game.grid); // 同步给 sequencer（保持功能不变）
 }
 
+// ======================================================
+// 绘制棋盘
+// ======================================================
 function renderGrid() {
   const app = document.getElementById("app");
   app.innerHTML = "";
@@ -19,12 +34,13 @@ function renderGrid() {
   const table = document.createElement("div");
   table.className = "grid";
 
-  for (let r = 0; r < grid.length; r++) {
-    for (let c = 0; c < grid[r].length; c++) {
+  const grid = game.grid;
+
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
       const data = grid[r][c];
       const cell = document.createElement("div");
       cell.className = "cell";
-      cell.style.setProperty("--b", 1);
 
       if (data.revealed) {
         cell.classList.add("revealed");
@@ -42,7 +58,10 @@ function renderGrid() {
         cell.textContent = "⚑";
       }
 
+      // 左键：翻开
       cell.addEventListener("click", () => revealCell(r, c));
+
+      // 右键：插旗
       cell.addEventListener("contextmenu", (ev) => {
         ev.preventDefault();
         toggleFlag(r, c);
@@ -55,53 +74,42 @@ function renderGrid() {
   app.appendChild(table);
 }
 
-export async function toggleFlag(r, c) {
-  await fetch(API + "/game/cell/flag", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ row: r, col: c }),
-  });
-  loadGame();
+// ======================================================
+// 右键插旗
+// ======================================================
+export function toggleFlag(r, c) {
+  game.toggleFlag(r, c);
+  setGrid(game.grid);
+  renderGrid();
 }
 
-export async function revealCell(r, c) {
-  const res = await fetch(API + "/game/cell/reveal", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ row: r, col: c }),
-  });
-
-  const result = await res.json();
+// ======================================================
+// 左键翻开
+// ======================================================
+export function revealCell(r, c) {
+  const result = game.revealCell(r, c);
 
   if (result.hitMine) {
-    const cells = document.querySelectorAll(".cell");
-    const idx = r * 16 + c;
-
-    if (cells[idx]) {
-      cells[idx].classList.add("mine-hit");
-      cells[idx].textContent = "💥";
-    }
-
-    setTimeout(() => {
-      alert("💥 游戏结束！你踩到了地雷！");
-      restartGame();
-    }, 150);
-
+    alert("💥 游戏结束！你踩到了地雷！");
+    restartGame();
     return;
   }
 
-  if (result.win) {
-    setTimeout(() => {
-      alert("🎉 恭喜通关！");
-      restartGame();
-    }, 50);
+  if (game.checkWin()) {
+    alert("🎉 恭喜通关！");
+    restartGame();
     return;
   }
 
-  loadGame();
+  setGrid(game.grid);
+  renderGrid();
 }
 
-export async function restartGame() {
-  await fetch(API + "/game/restart", { method: "POST" });
-  loadGame();
+// ======================================================
+// 重开游戏
+// ======================================================
+export function restartGame() {
+  game = createGrid(ROWS, COLS, MINES);
+  setGrid(game.grid);
+  renderGrid();
 }
