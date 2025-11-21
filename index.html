@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Minesweeper Sequencer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <h1>Minesweeper Sequencer</h1>
+
+  <!-- 顶部控制：BPM / 音量 / 重开 -->
+  <div class="controls">
+    <div class="control-row">
+      <div class="control-block">
+        <label>
+          BPM
+          <input id="bpmSlider" type="range" min="60" max="200" value="100" />
+          <span id="bpmValue">100</span>
+        </label>
+      </div>
+
+      <div class="control-block">
+        <label>
+          音量
+          <input id="volumeSlider" type="range" min="0" max="100" value="50" />
+          <span id="volumeValue">50%</span>
+        </label>
+      </div>
+
+      <button onclick="restartGame()">重新开始</button>
+    </div>
+  </div>
+
+  <!-- 扫雷棋盘 -->
+  <div id="app"></div>
+
+  <!-- 音色与效果控制面板 -->
+  <div class="sound-panel">
+    <h2>音色与效果</h2>
+    
+    <!-- 参数保存/加载/重置按钮 -->
+    <div class="params-control">
+      <button id="saveParamsBtn" class="param-btn save-btn">💾 保存参数</button>
+      <button id="loadParamsBtn" class="param-btn load-btn">📂 加载参数</button>
+      <button id="resetParamsBtn" class="param-btn reset-btn">🔄 重置为默认</button>
+    </div>
+
+    <!-- 配置文件管理 -->
+    <div class="config-management">
+      <h3>配置文件管理</h3>
+      <div class="config-controls">
+        <select id="configSelect" class="config-select">
+          <option value="">-- 选择配置 --</option>
+        </select>
+        <button id="configLoadBtn" class="config-btn load-btn">📥 加载</button>
+        <button id="configDeleteBtn" class="config-btn delete-btn">🗑️ 删除</button>
+        <button id="configExportBtn" class="config-btn export-btn">💾 导出</button>
+        <label class="config-btn import-btn">
+          📤 导入
+          <input id="configImportInput" type="file" accept=".json" style="display:none;">
+        </label>
+      </div>
+    </div>
+
+    <div class="sound-row">
+
+      <!-- ADSR -->
+      <div class="param-group">
+        <h3>ADSR</h3>
+        <label>Attack
+          <input id="attackSlider" type="range" min="0" max="0.5" step="0.01" value="0.01" />
+          <span id="attackValue">0.01s</span>
+        </label>
+        <label>Decay
+          <input id="decaySlider" type="range" min="0" max="1" step="0.01" value="0.20" />
+          <span id="decayValue">0.20s</span>
+        </label>
+        <label>Sustain
+          <input id="sustainSlider" type="range" min="0" max="1" step="0.01" value="0.40" />
+          <span id="sustainValue">0.40</span>
+        </label>
+        <label>Release
+          <input id="releaseSlider" type="range" min="0" max="1" step="0.01" value="0.30" />
+          <span id="releaseValue">0.30s</span>
+        </label>
+      </div>
+
+      <!-- 波形 -->
+      <div class="param-group">
+        <h3>波形</h3>
+        <label>
+          波形类型
+          <select id="waveformSelect">
+            <option value="sine">正弦波</option>
+            <option value="square">方波</option>
+            <option value="sawtooth">锯齿波</option>
+            <option value="triangle" selected>三角波</option>
+          </select>
+        </label>
+      </div>
+
+      <!-- 滤波器 -->
+      <div class="param-group">
+        <h3>滤波器</h3>
+        <label>Cutoff
+          <input id="filterCutoffSlider" type="range" min="200" max="12000" step="10" value="8000" />
+          <span id="filterCutoffValue">8000 Hz</span>
+        </label>
+      </div>
+
+      <!-- 混响 -->
+      <div class="param-group">
+        <h3>混响</h3>
+        <label>Decay
+          <input id="reverbDecaySlider" type="range" min="0.2" max="5" step="0.1" value="2.5" />
+          <span id="reverbDecayValue">2.5s</span>
+        </label>
+        <label>Mix
+          <input id="reverbMixSlider" type="range" min="0" max="100" step="1" value="30" />
+          <span id="reverbMixValue">30%</span>
+        </label>
+        <label>低切 (Hz)
+          <input id="reverbLowCutSlider" type="range" min="20" max="1000" step="10" value="400" />
+          <span id="reverbLowCutValue">400 Hz</span>
+        </label>
+        <label>高切 (Hz)
+          <input id="reverbHighCutSlider" type="range" min="1000" max="16000" step="100" value="8000" />
+          <span id="reverbHighCutValue">8000 Hz</span>
+        </label>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ES Module 主入口 -->
+  <script type="module" src="main.js"></script>
+</body>
+</html>
