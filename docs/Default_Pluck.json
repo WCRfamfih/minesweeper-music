@@ -1,0 +1,15 @@
+{
+  "bpm": 100,
+  "volume": 0.5,
+  "attack": 0,
+  "decay": 0.04,
+  "sustain": 0.14,
+  "release": 0.3,
+  "waveform": "sine",
+  "filterCutoff": 8000,
+  "filterQ": 1,
+  "reverbDecay": 2.5,
+  "reverbMix": 0.3,
+  "reverbLowCut": 400,
+  "reverbHighCut": 8000
+}

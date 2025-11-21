@@ -47,7 +47,7 @@ window.onload = async () => {
 // 加载默认配置文件
 async function loadDefaultConfig() {
   try {
-    const response = await fetch("../Default_Pluck.json");
+    const response = await fetch("./Default_Pluck.json");
     if (response.ok) {
       const config = await response.json();
       Object.assign(synthParams, config);
