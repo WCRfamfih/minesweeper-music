@@ -13,6 +13,7 @@ export function createGrid(rows = 16, cols = 16, mines = 40) {
       for (let c = 0; c < cols; c++) {
         grid[r][c] = {
           flagged: false,
+          muted: false,
           revealed: false,
           isMine: false,
           number: 0,
@@ -137,6 +138,7 @@ export function createGrid(rows = 16, cols = 16, mines = 40) {
 
     // Reveal logic
     cell.revealed = true;
+    cell.muted = false;
 
     if (cell.isMine) {
       return { hitMine: true };
@@ -156,6 +158,18 @@ export function createGrid(rows = 16, cols = 16, mines = 40) {
     const cell = grid[row][col];
     if (cell.revealed) return;
     cell.flagged = !cell.flagged;
+    if (!cell.flagged) {
+      cell.muted = false;
+    }
+  }
+
+  // =============================
+  // Mute toggle for flagged cell
+  // =============================
+  function toggleFlagMute(row, col) {
+    const cell = grid[row][col];
+    if (!cell.flagged || cell.revealed) return;
+    cell.muted = !cell.muted;
   }
 
   // =============================
@@ -177,6 +191,7 @@ export function createGrid(rows = 16, cols = 16, mines = 40) {
     grid,
     revealCell,
     toggleFlag,
+    toggleFlagMute,
     checkWin,
   };
 }

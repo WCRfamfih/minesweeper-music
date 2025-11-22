@@ -6,6 +6,9 @@
 import { refreshSequencer } from "./sequencer.js";
 import { updateReverb } from "./synth.js";
 import { masterGain } from "./audio.js";
+import { setRippleQuality, getRippleQuality } from "./ripple.js";
+
+const RIPPLE_QUALITY_KEY = "rippleQuality";
 
 /* 全局共享音色与效果参数 */
 const defaultParams = {
@@ -254,6 +257,20 @@ export function setupUI(shouldLoad = false) {
     if (masterGain) masterGain.gain.value = synthParams.volume;
   });
 
+  /* ========== 涟漪动画质量 ========= */
+  const rippleQualitySelect = document.getElementById("rippleQualitySelect");
+  if (rippleQualitySelect) {
+    const storedQuality = localStorage.getItem(RIPPLE_QUALITY_KEY);
+    const applied = storedQuality ? setRippleQuality(storedQuality) : getRippleQuality();
+    rippleQualitySelect.value = applied;
+
+    rippleQualitySelect.addEventListener("change", () => {
+      const quality = setRippleQuality(rippleQualitySelect.value);
+      rippleQualitySelect.value = quality;
+      localStorage.setItem(RIPPLE_QUALITY_KEY, quality);
+    });
+  }
+
 
   /* ========== ADSR ========== */
   const adsr = [
@@ -458,6 +475,7 @@ export function setupUI(shouldLoad = false) {
   // 页面卸载时自动保存参数
   window.addEventListener("beforeunload", () => {
     saveParamsToStorage();
+    localStorage.setItem(RIPPLE_QUALITY_KEY, getRippleQuality());
   });
 
   // 调试：打印初始化后的所有参数

@@ -8,7 +8,6 @@ let gridSize = { rows: 0, cols: 0 };
 
 const ROW_AUDIO_KEY = "rowAudioConfig";
 let rowAudioConfig = loadRowAudioConfig();
-let rowPitchOverrides = [];
 
 function loadRowAudioConfig() {
   try {
@@ -55,7 +54,6 @@ export function setGrid(g) {
     cols: Array.isArray(g) && g.length ? g[0].length : 0,
   };
   pruneRowAudioConfig(gridSize.rows);
-  regenerateRowPitchOverrides(gridSize.rows);
 }
 
 export function getGrid() {
@@ -90,26 +88,4 @@ export function resetRowAudioConfigs() {
 
 export function getAllRowAudioConfigs() {
   return { ...rowAudioConfig };
-}
-
-/* ============================================
-   行音高随机（大棋盘顶部行避免重复 C8）
-============================================ */
-function regenerateRowPitchOverrides(rows) {
-  const total = Math.max(0, Number(rows) || 0);
-  rowPitchOverrides = new Array(total).fill(null);
-  if (total < 32) return;
-
-  const pentOffsets = [0, 2, 4, 7, 9];
-  const topRows = Math.min(6, total); // 行 0-5
-  for (let r = 0; r < topRows; r++) {
-    const octave = 3 + Math.floor(Math.random() * 6); // C3~C8
-    const offset = pentOffsets[Math.floor(Math.random() * pentOffsets.length)];
-    const midi = Math.min(108, 12 * octave + offset);
-    rowPitchOverrides[r] = midi;
-  }
-}
-
-export function getRowPitchOverride(row) {
-  return rowPitchOverrides?.[row] ?? null;
 }

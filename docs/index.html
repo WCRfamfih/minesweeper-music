@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <title>Minesweeper Sequencer</title>
-  <!-- 必须加 ./ 才能在 GitHub Pages 下正常加载 -->
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
@@ -29,7 +28,41 @@
         </label>
       </div>
 
+      <div class="control-block">
+        <label>
+          棋盘 / 循环
+          <select id="boardSizeSelect">
+            <option value="16x16">16×16 · 1 小节</option>
+            <option value="32x32">32×32 · 2 小节</option>
+            <option value="64x32">64×32 · 4 小节</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="control-block">
+        <label>
+          缩放
+          <input id="boardScaleSlider" type="range" min="50" max="200" value="100" />
+          <span id="boardScaleValue">100%</span>
+        </label>
+      </div>
+
+      <div class="control-block">
+        <label>
+          涟漪动画
+          <select id="rippleQualitySelect">
+            <option value="high">高质量</option>
+            <option value="balanced">均衡</option>
+            <option value="performance">性能优先</option>
+            <option value="off">关闭</option>
+          </select>
+        </label>
+      </div>
+
+      <button id="globalRandomAudioBtn">🎲 全局随机音色</button>
+      <button id="smartRandomAudioBtn">🤖 智能随机（≥2/3 Pluck）</button>
       <button onclick="restartGame()">重新开始</button>
+      <button id="howToPlayBtn" class="text-btn">玩法说明</button>
     </div>
   </div>
 
@@ -134,7 +167,32 @@
     </div>
   </div>
 
-  <!-- ES Module 主入口（必须加 ./） -->
+  <!-- 玩法说明弹层 -->
+  <div id="howToOverlay" class="howto-overlay" hidden>
+    <div class="howto-modal">
+      <div class="howto-header">
+        <h3>玩法说明</h3>
+        <button id="howToCloseBtn" class="howto-close" aria-label="关闭" onclick="hideHowTo()">✕</button>
+      </div>
+      <div class="howto-body">
+        <p><strong>基础扫雷：</strong> 左键翻格，右键插旗。数字表示周围的地雷数。</p>
+        <p><strong>音乐玩法：</strong></p>
+        <ul>
+          <li>插旗的格子按行高播放音符（顶部音高，底部音低）。</li>
+          <li>再次左键已插旗可切换“禁播”（显示 🚫），禁播不发声且不触发涟漪。</li>
+          <li>行号左侧小三角：选择预置/上传音色，🎲 随机该行，⟳ 重置回合成器。</li>
+          <li>标题栏的“全局随机”与“智能随机”可快速分配行音色（智能随机保证 ≥2/3 行保留合成器）。</li>
+          <li>“涟漪动画”可调节视觉负载，性能不足可选“性能优先”或关闭。</li>
+        </ul>
+        <p><strong>移动端提示：</strong> 长按可触发右键插旗，点击可翻开（取决于设备/浏览器）；如遇音频受限，请先任意点击解锁音频。</p>
+      </div>
+      <div class="howto-footer">
+        <button id="howToCloseBtn2" class="primary-btn" onclick="hideHowTo()">我知道了</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ES Module 主入口（必须 ./） -->
   <script type="module" src="./main.js"></script>
 </body>
 </html>

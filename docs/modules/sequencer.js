@@ -6,7 +6,7 @@
 import { audioCtx, initAudioGraph, playSampleBuffer, getSampleBuffer } from "./audio.js";
 import { playPluck } from "./synth.js";
 import { flashCell } from "./ripple.js";
-import { getGrid, getRowAudioConfig, getRowPitchOverride } from "./state.js";
+import { getGrid, getRowAudioConfig } from "./state.js";
 
 /* 当前序列状态 */
 let isPlaying = false;
@@ -18,15 +18,22 @@ const pentOffsets = [0, 2, 4, 7, 9];
 
 /* 获取频率（上高下低） */
 function getRowFreq(row, totalRows) {
-  const overrideMidi = getRowPitchOverride(row);
-  if (typeof overrideMidi === "number") {
-    return midiToFreq(overrideMidi);
+  const rows = totalRows || 16;
+  if (rows >= 32) {
+    // 32 行及以上：将 A3-A6 音域重复两次（下半 + 上半）
+    const effectiveRows = Math.max(1, Math.floor(rows / 2));
+    const mirrorRow = row % effectiveRows; // 上半映射到下半
+    const bottomToTop = effectiveRows - 1 - mirrorRow;
+    const stepIndex = Math.max(0, bottomToTop);
+    const noteIndex = stepIndex % pentOffsets.length;
+    const octave = Math.floor(stepIndex / pentOffsets.length); // 从 A3 往上
+    const baseA = 57; // A3
+    const midi = baseA + pentOffsets[noteIndex] + octave * 12;
+    const clampedMidi = Math.min(midi, 93); // A6 及以下
+    return midiToFreq(clampedMidi);
   }
 
-  const rows = totalRows || 16;
-  const bottomToTop = rows - 1 - row;          // 0 = 最底行
-
-  // 按五声音阶逐行上行：C D E G A，每 5 行进入下一音区
+  const bottomToTop = rows - 1 - row; // 0 = 最底行
   const stepIndex = Math.max(0, bottomToTop);
   const noteIndex = stepIndex % pentOffsets.length;
   const octave = Math.floor(stepIndex / pentOffsets.length);
@@ -55,7 +62,7 @@ function tick(synthParams) {
 
   for (let r = 0; r < rows; r++) {
     const cell = grid[r][step];
-    if (cell.flagged) {
+    if (cell.flagged && !cell.muted) {
       const rowAudio = getRowAudioConfig(r);
       const useSample = rowAudio && rowAudio.mode && rowAudio.mode !== "synth" && rowAudio.sampleId;
       const buffer = useSample ? getSampleBuffer(rowAudio.sampleId) : null;

@@ -30,6 +30,22 @@ h1 {
   flex-wrap: wrap;
 }
 
+.text-btn {
+  background: none;
+  border: none;
+  color: #9ad7ff;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.text-btn:hover {
+  background: rgba(154, 215, 255, 0.1);
+  color: #c8e8ff;
+}
+
 .control-block label {
   font-size: 14px;
 }
@@ -58,10 +74,11 @@ h1 {
 
 .grid {
   display: grid;
-  grid-template-columns: var(--row-label-width, 60px) repeat(var(--cols, 16), var(--cell-size, 32px));
+  grid-template-columns: minmax(var(--row-label-width, 90px), max-content) repeat(var(--cols, 16), var(--cell-size, 32px));
   grid-template-rows: repeat(var(--rows, 16), var(--cell-size, 32px));
   gap: var(--cell-gap, 4px);
   margin-top: 20px;
+  contain: layout paint;
 }
 
 .row-header {
@@ -75,10 +92,54 @@ h1 {
   font-size: 12px;
   letter-spacing: 0.5px;
   position: relative;
+  min-width: var(--row-label-width, 90px);
+  box-sizing: border-box;
 }
 
 .row-number {
   opacity: 0.7;
+}
+
+.row-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.row-audio-random,
+.row-audio-reset {
+  background: transparent;
+  border: 1px solid #333;
+  color: #ddd;
+  cursor: pointer;
+  width: 28px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.18s ease;
+}
+
+.row-audio-random:hover,
+.row-audio-reset:hover {
+  background: transparent;
+  color: #fff;
+  border-color: #555;
+}
+
+.row-audio-random:disabled,
+.row-audio-reset:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.row-audio-random.pulse,
+.row-audio-reset.pulse {
+  box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.06);
+  border-color: #777;
+  color: #fff;
 }
 
 .row-audio-toggle {
@@ -168,7 +229,7 @@ h1 {
   width: var(--cell-size, 32px);
   height: var(--cell-size, 32px);
   background: #1b1b1b;
-  border-radius: calc(var(--cell-size, 32px) * 0.2);
+  border-radius: calc(var(--cell-size, 32px) * 0.16);
   cursor: pointer;
   display: flex;
   justify-content: center;
@@ -177,11 +238,25 @@ h1 {
   font-size: calc(var(--cell-size, 32px) * 0.56);
   color: transparent;
   filter: brightness(var(--b, 1));
-  transition: filter 0.1s linear, background 0.1s linear;
+  transition: transform 0.08s ease, filter 0.08s ease, opacity 0.08s ease;
+  will-change: transform, filter;
+  contain: paint;
 }
 
-.cell:hover {
-  background: #333;
+.cell.hovered {
+  transform: scale(0.96);
+  filter: brightness(1.4);
+  opacity: 0.95;
+}
+
+.grid.large-board .cell {
+  transition: transform 0.05s ease, filter 0.05s ease, opacity 0.05s ease;
+}
+
+.grid.large-board .cell.hovered {
+  transform: none;
+  filter: brightness(1.25);
+  opacity: 0.97;
 }
 
 .cell.flagged {
@@ -189,6 +264,12 @@ h1 {
   color: white !important;
   font-size: calc(var(--cell-size, 32px) * 0.62);
   z-index: 5;
+}
+
+.cell.flagged.flagged-muted {
+  background: #555 !important;
+  color: #eee !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .cell.revealed {
@@ -409,4 +490,89 @@ h1 {
     left: 0;
     top: calc(100% + 8px);
   }
+}
+
+/* 玩法说明弹层 */
+.howto-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 12px;
+  backdrop-filter: blur(2px);
+}
+
+.howto-overlay[hidden] {
+  display: none !important;
+}
+
+.howto-modal {
+  background: #151515;
+  border: 1px solid #333;
+  border-radius: 10px;
+  max-width: 520px;
+  width: 100%;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  color: #eee;
+}
+
+.howto-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 6px 14px;
+  border-bottom: 1px solid #222;
+}
+
+.howto-header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.howto-close {
+  background: none;
+  border: none;
+  color: #bbb;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 6px;
+}
+
+.howto-body {
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.howto-body ul {
+  padding-left: 20px;
+  margin: 6px 0;
+}
+
+.howto-body li {
+  margin-bottom: 6px;
+}
+
+.howto-footer {
+  padding: 10px 14px 12px 14px;
+  border-top: 1px solid #222;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.primary-btn {
+  background: #2196f3;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.primary-btn:hover {
+  background: #42a5f5;
 }

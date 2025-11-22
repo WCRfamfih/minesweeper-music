@@ -1,6 +1,6 @@
 /* ============================================
    ripple.js
-   方格水波扩散光效（单 RAF 管理 + 自适应降采样）
+   方格水波扩散光效（单 RAF 管理 + 自适应）
 ============================================ */
 
 import { getGridSize } from "./state.js";
@@ -51,11 +51,12 @@ function getPreset() {
   return ripplePresets[rippleQuality] || ripplePresets.balanced;
 }
 
-/* ========== 缓存棋盘 DOM，避免每次 querySelectorAll ========== */
+/* ========== 缓存棋盘 DOM ========== */
 let cachedCells = [];
 let cachedRows = 0;
 let cachedCols = 0;
-const highlightHold = new Map(); // Map<HTMLElement, number>
+// Map<HTMLElement, { deadline: number, prev: string | null }>
+const highlightHold = new Map();
 
 function ensureCells() {
   const { rows, cols } = getGridSize();
@@ -70,7 +71,6 @@ function ensureCells() {
     cachedCols = cols || 16;
     cachedCells = Array.from(document.querySelectorAll(".cell"));
     highlightHold.clear();
-    activeRipples.length = 0; // 旧 DOM 的涟漪直接丢弃
   }
 }
 
@@ -83,7 +83,7 @@ function getCell(row, col) {
 /* ========== 全局 RAF 管理所有涟漪 ========== */
 const activeRipples = [];
 let rafId = null;
-const MAX_RIPPLES = 3; // 限制并发，防止大棋盘爆炸
+const MAX_RIPPLES = 5; // 提高并发，增加可见度和负载
 
 function scheduleRAF() {
   if (rafId) return;
@@ -92,33 +92,44 @@ function scheduleRAF() {
 
 function stepAll() {
   rafId = null;
-  if (!activeRipples.length) return;
+  // DOM 可能在重绘后被替换，确保缓存有效
+  ensureCells();
 
   const now = performance.now();
 
-  // 清理过期高亮
-  for (const [cell, deadline] of highlightHold) {
-    if (deadline <= now) {
-      cell.style.setProperty("--b", 1);
-      highlightHold.delete(cell);
+  // 清理过期高亮（即便没有活跃涟漪也要运行）
+  for (const [cell, data] of highlightHold) {
+    if (!data || data.deadline > now) continue;
+    if (data.prev && data.prev.length) {
+      cell.style.setProperty("--b", data.prev);
+    } else {
+      cell.style.removeProperty("--b");
     }
+    highlightHold.delete(cell);
   }
+
+  const hasRipples = activeRipples.length > 0;
+  if (!hasRipples && !highlightHold.size) return;
 
   const nowHits = [];
 
-  for (let i = activeRipples.length - 1; i >= 0; i--) {
-    const r = activeRipples[i];
-    const alive = stepRipple(r, nowHits);
-    if (!alive) activeRipples.splice(i, 1);
+  if (hasRipples) {
+    for (let i = activeRipples.length - 1; i >= 0; i--) {
+      const r = activeRipples[i];
+      const alive = stepRipple(r, nowHits);
+      if (!alive) activeRipples.splice(i, 1);
+    }
   }
 
   // 批量写入亮度
   for (const hit of nowHits) {
+    const prevExisting = highlightHold.get(hit.cell)?.prev;
+    const prev = prevExisting !== undefined ? prevExisting : (hit.cell.style.getPropertyValue("--b") || "");
     hit.cell.style.setProperty("--b", hit.brightness);
-    highlightHold.set(hit.cell, now + hit.revertMs);
+    highlightHold.set(hit.cell, { deadline: now + hit.revertMs, prev });
   }
 
-  if (activeRipples.length) scheduleRAF();
+  if (activeRipples.length || highlightHold.size) scheduleRAF();
 }
 
 function stepRipple(ripple, hitsOut) {
@@ -134,13 +145,11 @@ function stepRipple(ripple, hitsOut) {
   for (let rr = minR; rr <= maxR; rr++) {
     for (let cc = minC; cc <= maxC; cc++) {
       if (ripple.sampleStep > 1 && !(rr === ripple.r && cc === ripple.c)) {
-        // 跳采样：仅保留部分点
         if ((rr + cc) % ripple.sampleStep !== 0) continue;
       }
 
       const dr = rr - ripple.r;
       const dc = cc - ripple.c;
-      // 使用真实距离差的高斯，避免十字状/过窄环
       const d = Math.hypot(dr, dc);
       const b = Math.exp(-1 * (((d - radius) / ripple.sigma) ** 2));
       if (b <= ripple.cutoff) continue;
@@ -155,12 +164,12 @@ function stepRipple(ripple, hitsOut) {
   return ripple.t <= ripple.maxDist;
 }
 
-/* ========== 自适应参数：随棋盘大小降采样、加速半径 ========== */
+/* ========== 自适应参数 ========== */
 function deriveAdaptiveParams(preset, rows, cols) {
   const diag = Math.sqrt(rows * rows + cols * cols);
-  const baseSample = Math.max(1, Math.round(diag / 32)); // 大棋盘跳更多
-  const sampleStep = Math.max(1, Math.floor((preset.sampleStep || 1) * baseSample));
-  const radiusStep = Math.max(1, preset.radiusStep || 1);
+  const baseSample = Math.max(1, Math.round(diag / 64)); // 略减降采样，更多点位参与
+  const sampleStep = Math.max(1, Math.floor((preset.sampleStep || 0.8) * baseSample));
+  const radiusStep = Math.max(0.6, preset.radiusStep || 1);
   const revertMs = Math.max(60, Math.min(220, preset.revertMs || 140));
 
   return {
@@ -177,8 +186,6 @@ function deriveAdaptiveParams(preset, rows, cols) {
 
 /**
  * 播放标记音符的水波扩散光效
- * @param {number} r - 行
- * @param {number} c - 列
  */
 export function flashCell(r, c) {
   const preset = getPreset();

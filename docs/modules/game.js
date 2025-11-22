@@ -1,6 +1,6 @@
 // 前端 Minesweeper — 仅前端逻辑，不使用任何后台 API
 import { resetSequencerPosition } from "./sequencer.js";
-import { setGrid, getRowAudioConfig, setRowAudioConfig } from "./state.js";
+import { setGrid, getRowAudioConfig, setRowAudioConfig, resetRowAudioConfigs, getGridSize } from "./state.js";
 import { createGrid } from "./grid.js";
 import { audioCtx, getBuiltinSamples, loadBuiltinSample, loadFileSample } from "./audio.js";
 
@@ -11,12 +11,13 @@ const BOARD_MODES = {
 };
 
 const DEFAULT_MODE = "16x16";
-const ROW_LABEL_BASE = 60; // px
+const ROW_LABEL_BASE = 90; // px, 给行号与按钮留足空间
 
 let game = null;
 let currentMode = DEFAULT_MODE;
 let boardScale = 1;
 let openRowPanel = null;
+let hoverCell = null;
 
 function calcMines(rows, cols) {
   const density = 0.15625; // 16x16 时约 40 雷，保持相同比例
@@ -69,6 +70,7 @@ function renderGrid() {
   const app = document.getElementById("app");
   app.innerHTML = "";
   openRowPanel = null;
+  hoverCell = null;
 
   const table = document.createElement("div");
   table.className = "grid";
@@ -86,6 +88,7 @@ function renderGrid() {
   table.style.setProperty("--cell-size", `${scaledSize}px`);
   table.style.setProperty("--cell-gap", `${scaledGap}px`);
   table.style.setProperty("--row-label-width", `${labelWidth}px`);
+  table.classList.toggle("large-board", cols >= 32);
 
   for (let r = 0; r < rows; r++) {
     const header = createRowHeader(r);
@@ -109,16 +112,30 @@ function renderGrid() {
 
       if (data.flagged && !data.revealed) {
         cell.classList.add("flagged");
-        cell.textContent = "🚩";
+        if (data.muted) {
+          cell.classList.add("flagged-muted");
+          cell.textContent = "🚫";
+        } else {
+          cell.textContent = "🚩";
+        }
       }
 
       // 左键：翻开
-      cell.addEventListener("click", () => revealCell(r, c));
+      cell.addEventListener("click", () => {
+        if (data.flagged && !data.revealed) {
+          toggleFlagMute(r, c);
+          setGrid(game.grid);
+          renderGrid();
+        } else {
+          revealCell(r, c);
+        }
+      });
 
       // 右键：插旗
       cell.addEventListener("contextmenu", (ev) => {
         ev.preventDefault();
         toggleFlag(r, c);
+        renderGrid();
       });
 
       table.appendChild(cell);
@@ -126,6 +143,7 @@ function renderGrid() {
   }
 
   app.appendChild(table);
+  attachGridHover(table);
 }
 
 function closeOpenRowPanel() {
@@ -144,6 +162,21 @@ function createRowHeader(rowIndex) {
   number.className = "row-number";
   number.textContent = String(rowIndex + 1).padStart(2, "0");
 
+  const actions = document.createElement("div");
+  actions.className = "row-header-actions";
+
+  const randomBtn = document.createElement("button");
+  randomBtn.type = "button";
+  randomBtn.className = "row-audio-random";
+  randomBtn.setAttribute("aria-label", "随机选择预置音频");
+  randomBtn.textContent = "🎲";
+
+  const resetBtn = document.createElement("button");
+  resetBtn.type = "button";
+  resetBtn.className = "row-audio-reset";
+  resetBtn.setAttribute("aria-label", "重置为 Pluck");
+  resetBtn.textContent = "⟳";
+
   const toggle = document.createElement("button");
   toggle.type = "button";
   toggle.className = "row-audio-toggle";
@@ -152,7 +185,7 @@ function createRowHeader(rowIndex) {
 
   const panel = document.createElement("div");
   panel.className = "row-audio-panel";
-  buildRowAudioPanel(panel, rowIndex, toggle);
+  const panelAPI = buildRowAudioPanel(panel, rowIndex, [toggle, randomBtn, resetBtn]);
 
   toggle.addEventListener("click", (ev) => {
     ev.stopPropagation();
@@ -164,13 +197,51 @@ function createRowHeader(rowIndex) {
     }
   });
 
+  randomBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    panelAPI.randomBuiltin();
+  });
+
+  resetBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    flashButton(resetBtn);
+    panelAPI.resetToSynth();
+  });
+
+  function flashButton(btn) {
+    if (!btn) return;
+    btn.classList.add("pulse");
+    setTimeout(() => btn.classList.remove("pulse"), 180);
+  }
+
+  actions.appendChild(randomBtn);
+  actions.appendChild(resetBtn);
+  actions.appendChild(toggle);
+
   header.appendChild(number);
-  header.appendChild(toggle);
+  header.appendChild(actions);
   header.appendChild(panel);
   return header;
 }
 
-function buildRowAudioPanel(panel, rowIndex, toggleButton) {
+function attachGridHover(table) {
+  table.addEventListener("pointermove", (ev) => {
+    const cell = ev.target && ev.target.closest(".cell");
+    if (cell === hoverCell) return;
+    if (hoverCell) hoverCell.classList.remove("hovered");
+    if (cell) cell.classList.add("hovered");
+    hoverCell = cell;
+  });
+
+  table.addEventListener("pointerleave", () => {
+    if (hoverCell) {
+      hoverCell.classList.remove("hovered");
+      hoverCell = null;
+    }
+  });
+}
+
+function buildRowAudioPanel(panel, rowIndex, controlsToDisable = []) {
   panel.innerHTML = "";
   const state = getRowAudioState(rowIndex);
   const builtin = getBuiltinSamples();
@@ -185,6 +256,10 @@ function buildRowAudioPanel(panel, rowIndex, toggleButton) {
   const select = document.createElement("select");
   select.className = "row-audio-select";
 
+  // 上传放置最顶端
+  const uploadOpt = new Option("上传本地音频…", "upload");
+  select.appendChild(uploadOpt);
+
   const defaultOpt = new Option("原始 Pluck（默认）", "synth");
   select.appendChild(defaultOpt);
 
@@ -192,9 +267,6 @@ function buildRowAudioPanel(panel, rowIndex, toggleButton) {
     const opt = new Option(`预置 · ${s.name}`, s.id);
     select.appendChild(opt);
   });
-
-  const uploadOpt = new Option("上传本地音频…", "upload");
-  select.appendChild(uploadOpt);
 
   const fileInput = document.createElement("input");
   fileInput.type = "file";
@@ -224,6 +296,13 @@ function buildRowAudioPanel(panel, rowIndex, toggleButton) {
   panel.appendChild(select);
   panel.appendChild(volumeWrap);
   panel.appendChild(fileInput);
+
+  function setBusy(busy) {
+    select.disabled = busy;
+    controlsToDisable.forEach((el) => {
+      if (el) el.disabled = busy;
+    });
+  }
 
   function getVolume() {
     return Math.max(0, Math.min(parseInt(volumeSlider.value, 10) / 100 || 0, 2));
@@ -265,8 +344,7 @@ function buildRowAudioPanel(panel, rowIndex, toggleButton) {
       return;
     }
     status.textContent = "加载预置音频...";
-    select.disabled = true;
-    toggleButton.disabled = true;
+    setBusy(true);
     try {
       const buffer = await loadBuiltinSample(sample.id);
       if (!buffer) throw new Error("buffer missing");
@@ -282,8 +360,7 @@ function buildRowAudioPanel(panel, rowIndex, toggleButton) {
       alert("加载预置音频失败，请重试。");
       applySynth();
     } finally {
-      select.disabled = false;
-      toggleButton.disabled = false;
+      setBusy(false);
     }
   }
 
@@ -294,8 +371,7 @@ function buildRowAudioPanel(panel, rowIndex, toggleButton) {
       return;
     }
     status.textContent = "加载本地音频...";
-    select.disabled = true;
-    toggleButton.disabled = true;
+    setBusy(true);
     try {
       const bufferId = `upload-${rowIndex}-${Date.now()}`;
       const buffer = await loadFileSample(file, bufferId);
@@ -313,8 +389,7 @@ function buildRowAudioPanel(panel, rowIndex, toggleButton) {
       alert("上传的音频解码失败，请更换文件。");
       applySynth();
     } finally {
-      select.disabled = false;
-      toggleButton.disabled = false;
+      setBusy(false);
       fileInput.value = "";
     }
   }
@@ -351,6 +426,21 @@ function buildRowAudioPanel(panel, rowIndex, toggleButton) {
     select.value = "synth";
   }
   updateStatus();
+
+  return {
+    randomBuiltin() {
+      const pool = [{ id: "synth", mode: "synth" }, ...builtin];
+      const choice = pool[Math.floor(Math.random() * pool.length)];
+      if (choice.id === "synth") {
+        applySynth();
+      } else {
+        applyBuiltin(choice.id);
+      }
+    },
+    resetToSynth() {
+      applySynth();
+    },
+  };
 }
 
 // ======================================================
@@ -362,6 +452,11 @@ export function toggleFlag(r, c) {
   renderGrid();
 }
 
+function toggleFlagMute(r, c) {
+  if (!game || !game.toggleFlagMute) return;
+  game.toggleFlagMute(r, c);
+}
+
 // ======================================================
 // 左键翻开
 // ======================================================
@@ -370,13 +465,13 @@ export function revealCell(r, c) {
 
   if (result.hitMine) {
     alert("💥 游戏结束！你踩到了地雷！");
-    restartGame();
+    restartGame(false);
     return;
   }
 
   if (game.checkWin()) {
     alert("🎉 恭喜通关！");
-    restartGame();
+    restartGame(false);
     return;
   }
 
@@ -387,10 +482,13 @@ export function revealCell(r, c) {
 // ======================================================
 // 重开游戏
 // ======================================================
-export function restartGame() {
+export function restartGame(resetAudio = true) {
   const settings = getCurrentSettings();
   game = createGrid(settings.rows, settings.cols, settings.mines);
   setGrid(game.grid);
+  if (resetAudio) {
+    resetRowAudioConfigs();
+  }
   resetSequencerPosition();
   renderGrid();
 }
@@ -431,4 +529,84 @@ export function setBoardScale(scale) {
 
 export function getBoardScale() {
   return boardScale;
+}
+
+export async function randomizeAllRowsAudio() {
+  const { rows } = getGridSize();
+  if (!rows) return;
+  const builtin = getBuiltinSamples();
+  const pool = [{ mode: "synth" }, ...builtin.map((s) => ({ mode: "builtin", sampleId: s.id, name: s.name }))];
+  const pick = () => pool[Math.floor(Math.random() * pool.length)];
+
+  const chosenIds = new Set();
+  const choices = [];
+  for (let r = 0; r < rows; r++) {
+    const choice = pick();
+    choices.push(choice);
+    if (choice.sampleId) chosenIds.add(choice.sampleId);
+  }
+
+  // 预加载所需的预置音频，避免回落到 pluck
+  if (chosenIds.size) {
+    const promises = [...chosenIds].map((id) => loadBuiltinSample(id).catch(() => null));
+    await Promise.all(promises);
+  }
+
+  for (let r = 0; r < rows; r++) {
+    const choice = choices[r];
+    if (choice.mode === "synth") {
+      setRowAudioConfig(r, { mode: "synth", sampleId: null, name: null });
+    } else {
+      setRowAudioConfig(r, {
+        mode: "builtin",
+        sampleId: choice.sampleId,
+        name: choice.name,
+      });
+    }
+  }
+  // 仅刷新表头 UI，不重置游戏
+  renderGrid();
+}
+
+export async function smartRandomizeAllRowsAudio() {
+  const { rows } = getGridSize();
+  if (!rows) return;
+  const builtin = getBuiltinSamples();
+  const synthTarget = Math.ceil(rows * (2 / 3));
+  const pool = builtin.map((s) => ({ mode: "builtin", sampleId: s.id, name: s.name }));
+  const choices = new Array(rows).fill(null);
+
+  // 先填充至少 2/3 为合成器
+  for (let r = 0; r < rows; r++) {
+    choices[r] = r < synthTarget ? { mode: "synth" } : null;
+  }
+
+  // 剩余行随机选预置（如预置不足则仍用合成器）
+  for (let r = synthTarget; r < rows; r++) {
+    const choice = pool.length ? pool[Math.floor(Math.random() * pool.length)] : { mode: "synth" };
+    choices[r] = choice;
+  }
+
+  // 打乱顺序避免前半部分永远是合成器
+  for (let i = choices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [choices[i], choices[j]] = [choices[j], choices[i]];
+  }
+
+  const chosenIds = new Set(choices.filter((c) => c.sampleId).map((c) => c.sampleId));
+  if (chosenIds.size) {
+    const promises = [...chosenIds].map((id) => loadBuiltinSample(id).catch(() => null));
+    await Promise.all(promises);
+  }
+
+  for (let r = 0; r < rows; r++) {
+    const choice = choices[r];
+    if (choice.mode === "synth") {
+      setRowAudioConfig(r, { mode: "synth", sampleId: null, name: null });
+    } else {
+      setRowAudioConfig(r, { mode: "builtin", sampleId: choice.sampleId, name: choice.name });
+    }
+  }
+
+  renderGrid();
 }
