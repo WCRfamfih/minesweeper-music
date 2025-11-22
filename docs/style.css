@@ -1,4 +1,4 @@
-﻿body {
+body {
   background: #111;
   color: #eee;
   font-family: sans-serif;
@@ -15,7 +15,7 @@ h1 {
   text-align: center;
 }
 
-/* 顶部控制栏 */
+/* 顶部控制 */
 .controls {
   margin-bottom: 10px;
   width: 100%;
@@ -38,28 +38,143 @@ h1 {
   vertical-align: middle;
 }
 
+.control-block select {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #222;
+  color: #eee;
+  font-size: 14px;
+  cursor: pointer;
+}
+
 /* 棋盘 */
+#app {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  overflow-x: auto;
+}
+
 .grid {
   display: grid;
-  grid-template-columns: repeat(16, 32px);
-  grid-template-rows: repeat(16, 32px);
-  gap: 4px;
+  grid-template-columns: var(--row-label-width, 60px) repeat(var(--cols, 16), var(--cell-size, 32px));
+  grid-template-rows: repeat(var(--rows, 16), var(--cell-size, 32px));
+  gap: var(--cell-gap, 4px);
   margin-top: 20px;
 }
 
-.cell {
-  width: 32px;
-  height: 32px;
-  background: #1b1b1b;
+.row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #0f0f0f;
+  border-radius: calc(var(--cell-size, 32px) * 0.2);
+  padding: 0 6px 0 10px;
+  color: #888;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  position: relative;
+}
+
+.row-number {
+  opacity: 0.7;
+}
+
+.row-audio-toggle {
+  background: transparent;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.row-audio-toggle:hover {
+  color: #fff;
+}
+
+.row-header.open .row-audio-toggle {
+  transform: rotate(90deg);
+  color: #fff;
+}
+
+.row-audio-panel {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 0;
+  min-width: 220px;
+  background: #1a1a1a;
+  border: 1px solid #2c2c2c;
+  border-radius: 8px;
+  padding: 10px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  display: none;
+  z-index: 10;
+}
+
+.row-header.open .row-audio-panel {
+  display: block;
+}
+
+.row-audio-title {
+  font-size: 12px;
+  color: #bbb;
+  margin-bottom: 6px;
+}
+
+.row-audio-status {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 6px;
+}
+
+.row-audio-select {
+  width: 100%;
+  background: #222;
+  color: #eee;
+  border: 1px solid #444;
   border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.row-audio-volume {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: #ccc;
+}
+
+.row-audio-volume input[type="range"] {
+  flex: 1;
+}
+
+.row-audio-vol-value {
+  width: 44px;
+  text-align: right;
+  color: #aaa;
+}
+
+.cell {
+  width: var(--cell-size, 32px);
+  height: var(--cell-size, 32px);
+  background: #1b1b1b;
+  border-radius: calc(var(--cell-size, 32px) * 0.2);
   cursor: pointer;
   display: flex;
   justify-content: center;
   align-items: center;
-
   font-weight: bold;
-  font-size: 18px;
-
+  font-size: calc(var(--cell-size, 32px) * 0.56);
   color: transparent;
   filter: brightness(var(--b, 1));
   transition: filter 0.1s linear, background 0.1s linear;
@@ -72,7 +187,7 @@ h1 {
 .cell.flagged {
   background: #d84a4a !important;
   color: white !important;
-  font-size: 20px;
+  font-size: calc(var(--cell-size, 32px) * 0.62);
   z-index: 5;
 }
 
@@ -85,7 +200,7 @@ h1 {
 .cell.mine-hit {
   background: #ff4a4a !important;
   color: white !important;
-  font-size: 22px;
+  font-size: calc(var(--cell-size, 32px) * 0.7);
 }
 
 /* 数字颜色 */
@@ -98,7 +213,7 @@ h1 {
 .num-7 { color: #000 !important; }
 .num-8 { color: #888 !important; }
 
-/* 控制面板 */
+/* 音色面板 */
 .sound-panel {
   margin-top: 24px;
   padding: 16px;
@@ -136,7 +251,7 @@ h1 {
 }
 
 .save-btn {
-  background: #4CAF50;
+  background: #4caf50;
 }
 
 .save-btn:hover {
@@ -144,7 +259,7 @@ h1 {
 }
 
 .load-btn {
-  background: #2196F3;
+  background: #2196f3;
 }
 
 .load-btn:hover {
@@ -165,13 +280,13 @@ h1 {
   padding: 12px;
   background: #222;
   border-radius: 8px;
-  border-left: 4px solid #2196F3;
+  border-left: 4px solid #2196f3;
 }
 
 .config-management h3 {
   margin: 0 0 12px 0;
   font-size: 14px;
-  color: #2196F3;
+  color: #2196f3;
 }
 
 .config-controls {
@@ -195,7 +310,7 @@ h1 {
 
 .config-select:focus {
   outline: none;
-  border-color: #2196F3;
+  border-color: #2196f3;
   box-shadow: 0 0 4px rgba(33, 150, 243, 0.5);
 }
 
@@ -221,7 +336,7 @@ h1 {
 }
 
 .config-btn.load-btn {
-  background: #2196F3;
+  background: #2196f3;
 }
 
 .config-btn.load-btn:hover {
@@ -237,7 +352,7 @@ h1 {
 }
 
 .config-btn.export-btn {
-  background: #4CAF50;
+  background: #4caf50;
 }
 
 .config-btn.export-btn:hover {
@@ -288,5 +403,10 @@ h1 {
 @media (max-width: 700px) {
   .sound-row {
     flex-direction: column;
+  }
+
+  .row-audio-panel {
+    left: 0;
+    top: calc(100% + 8px);
   }
 }
