@@ -13,11 +13,19 @@ const BOARD_MODES = {
 const DEFAULT_MODE = "16x16";
 const ROW_LABEL_BASE = 90; // px, 给行号与按钮留足空间
 
+function emit(name, detail = {}) {
+  document.dispatchEvent(new CustomEvent(name, { detail }));
+}
+
 let game = null;
 let currentMode = DEFAULT_MODE;
 let boardScale = 1;
 let openRowPanel = null;
 let hoverCell = null;
+let gameOver = false;
+let probabilityMode = false;
+let probabilityEverUsed = false;
+let firstRevealFired = false;
 
 function calcMines(rows, cols) {
   const density = 0.15625; // 16x16 时约 40 雷，保持相同比例
@@ -38,6 +46,18 @@ function getCellVisuals(cols) {
   return { size: 10, gap: 1 };
 }
 
+export function setProbabilityMode(enabled) {
+  probabilityMode = !!enabled;
+  if (probabilityMode) {
+    probabilityEverUsed = true;
+    emit("game:probabilityLocked");
+  }
+  if (!probabilityMode) {
+    if (!game || !game.grid) return;
+    renderGrid();
+  }
+}
+
 function getRowAudioState(rowIndex) {
   return getRowAudioConfig(rowIndex) || { mode: "synth", volume: 1 };
 }
@@ -54,13 +74,16 @@ function updateRowAudioState(rowIndex, patch = {}) {
 // ======================================================
 export async function loadGame() {
   if (!game) {
-    // 第一次进入游戏，创建前端 grid 逻辑
     const settings = getCurrentSettings();
     game = createGrid(settings.rows, settings.cols, settings.mines);
   }
 
-  setGrid(game.grid); // 同步给 sequencer（保持功能不变）
+  gameOver = false;
+  probabilityEverUsed = false;
+  firstRevealFired = false;
+  setGrid(game.grid);
   renderGrid();
+  emit("game:restart");
 }
 
 // ======================================================
@@ -120,16 +143,27 @@ function renderGrid() {
         }
       }
 
-      // 左键：翻开
+      if (gameOver && data.isMine && !data.flagged) {
+        cell.classList.add("mine-show");
+        cell.textContent = "💣";
+      }
+
+      // 左键：翻开或切换禁播
       cell.addEventListener("click", () => {
         if (data.flagged && !data.revealed) {
           toggleFlagMute(r, c);
           setGrid(game.grid);
           renderGrid();
-        } else {
+          return;
+        }
+        if (!gameOver) {
           revealCell(r, c);
         }
       });
+
+      // 悬停显示概率
+      cell.addEventListener("pointerenter", () => showCellProbability(cell, r, c));
+      cell.addEventListener("pointerleave", () => clearCellProbability(cell));
 
       // 右键：插旗
       cell.addEventListener("contextmenu", (ev) => {
@@ -239,6 +273,81 @@ function attachGridHover(table) {
       hoverCell = null;
     }
   });
+}
+
+function clearCellProbability(cell) {
+  if (!cell || !cell.classList.contains("prob-show")) return;
+  const prev = cell.dataset.prevText || "";
+  cell.textContent = prev;
+  cell.classList.remove("prob-show");
+  delete cell.dataset.prevText;
+}
+
+function showCellProbability(cell, r, c) {
+  if (!probabilityMode || !cell) return;
+  const prob = computeMineProbability(r, c);
+  if (prob == null) return;
+  const prev = cell.textContent;
+  cell.dataset.prevText = prev;
+  cell.textContent = `${Math.round(prob * 100)}%`;
+  cell.classList.add("prob-show");
+}
+
+function computeMineProbability(r, c) {
+  if (!game || !game.grid) return null;
+  const grid = game.grid;
+  const cell = grid[r]?.[c];
+  if (!cell || cell.revealed || cell.flagged) return null;
+
+  const totalMines = getCurrentSettings().mines;
+  let flagged = 0;
+  let revealed = 0;
+
+  for (let rr = 0; rr < grid.length; rr++) {
+    for (let cc = 0; cc < grid[0].length; cc++) {
+      const d = grid[rr][cc];
+      if (d.flagged) flagged++;
+      if (d.revealed) revealed++;
+    }
+  }
+
+  const total = grid.length * (grid[0]?.length || 0);
+  const unknown = Math.max(1, total - revealed - flagged);
+  const remainingMines = Math.max(0, totalMines - flagged);
+  const baseProb = remainingMines / unknown;
+
+  const dirs = [
+    [-1, -1], [-1, 0], [-1, 1],
+    [0, -1],          [0, 1],
+    [1, -1],  [1, 0], [1, 1],
+  ];
+  let localProb = null;
+
+  for (const [dr, dc] of dirs) {
+    const nr = r + dr;
+    const nc = c + dc;
+    const neighbor = grid[nr]?.[nc];
+    if (!neighbor || !neighbor.revealed || neighbor.number <= 0) continue;
+
+    let f = 0;
+    let u = 0;
+    for (const [dr2, dc2] of dirs) {
+      const rr = nr + dr2;
+      const cc = nc + dc2;
+      const ncell = grid[rr]?.[cc];
+      if (!ncell) continue;
+      if (ncell.flagged) f++;
+      else if (!ncell.revealed) u++;
+    }
+    const remaining = neighbor.number - f;
+    if (u > 0 && remaining > 0) {
+      const p = remaining / u;
+      localProb = localProb === null ? p : Math.max(localProb, p);
+    }
+  }
+
+  const finalProb = Math.max(0, Math.min(1, localProb !== null ? localProb : baseProb));
+  return finalProb;
 }
 
 function buildRowAudioPanel(panel, rowIndex, controlsToDisable = []) {
@@ -417,7 +526,6 @@ function buildRowAudioPanel(panel, rowIndex, controlsToDisable = []) {
     applyUpload(file);
   });
 
-  // 初始化选中状态
   if (state.mode === "builtin" && state.sampleId) {
     select.value = state.sampleId;
   } else if (state.mode === "upload") {
@@ -461,17 +569,28 @@ function toggleFlagMute(r, c) {
 // 左键翻开
 // ======================================================
 export function revealCell(r, c) {
+  if (gameOver) return;
+
   const result = game.revealCell(r, c);
 
+  if (!firstRevealFired) {
+    firstRevealFired = true;
+    emit("game:firstReveal");
+  }
+
   if (result.hitMine) {
+    gameOver = true;
+    renderGrid();
     alert("💥 游戏结束！你踩到了地雷！");
-    restartGame(false);
+    emit("game:lose");
     return;
   }
 
   if (game.checkWin()) {
+    gameOver = true;
+    renderGrid();
     alert("🎉 恭喜通关！");
-    restartGame(false);
+    emit("game:win");
     return;
   }
 
@@ -486,11 +605,15 @@ export function restartGame(resetAudio = true) {
   const settings = getCurrentSettings();
   game = createGrid(settings.rows, settings.cols, settings.mines);
   setGrid(game.grid);
+  gameOver = false;
+  probabilityEverUsed = false;
+  firstRevealFired = false;
   if (resetAudio) {
     resetRowAudioConfigs();
   }
   resetSequencerPosition();
   renderGrid();
+  emit("game:restart");
 }
 
 // ======================================================
@@ -506,8 +629,12 @@ export function setBoardMode(modeKey) {
   const settings = getCurrentSettings();
   game = createGrid(settings.rows, settings.cols, settings.mines);
   setGrid(game.grid);
+  gameOver = false;
+  probabilityEverUsed = false;
+  firstRevealFired = false;
   resetSequencerPosition();
   renderGrid();
+  emit("game:restart");
 }
 
 export function getBoardModes() {
@@ -546,7 +673,6 @@ export async function randomizeAllRowsAudio() {
     if (choice.sampleId) chosenIds.add(choice.sampleId);
   }
 
-  // 预加载所需的预置音频，避免回落到 pluck
   if (chosenIds.size) {
     const promises = [...chosenIds].map((id) => loadBuiltinSample(id).catch(() => null));
     await Promise.all(promises);
@@ -564,30 +690,27 @@ export async function randomizeAllRowsAudio() {
       });
     }
   }
-  // 仅刷新表头 UI，不重置游戏
   renderGrid();
 }
 
-export async function smartRandomizeAllRowsAudio() {
+export async function smartRandomizeAllRowsAudio(pluckRatio = 0.66) {
   const { rows } = getGridSize();
   if (!rows) return;
   const builtin = getBuiltinSamples();
-  const synthTarget = Math.ceil(rows * (2 / 3));
+  const ratio = Math.min(1, Math.max(0, Number(pluckRatio) || 0));
+  const synthTarget = Math.round(rows * ratio);
   const pool = builtin.map((s) => ({ mode: "builtin", sampleId: s.id, name: s.name }));
   const choices = new Array(rows).fill(null);
 
-  // 先填充至少 2/3 为合成器
   for (let r = 0; r < rows; r++) {
     choices[r] = r < synthTarget ? { mode: "synth" } : null;
   }
 
-  // 剩余行随机选预置（如预置不足则仍用合成器）
   for (let r = synthTarget; r < rows; r++) {
     const choice = pool.length ? pool[Math.floor(Math.random() * pool.length)] : { mode: "synth" };
     choices[r] = choice;
   }
 
-  // 打乱顺序避免前半部分永远是合成器
   for (let i = choices.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [choices[i], choices[j]] = [choices[j], choices[i]];

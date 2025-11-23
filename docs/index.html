@@ -7,75 +7,121 @@
 </head>
 <body>
 
-  <h1>Minesweeper Sequencer</h1>
+  <div class="page-shell">
+    <h1>Minesweeper Sequencer</h1>
 
-  <!-- 顶部控制：BPM / 音量 / 重开 -->
-  <div class="controls">
-    <div class="control-row">
-      <div class="control-block">
-        <label>
-          BPM
-          <input id="bpmSlider" type="range" min="60" max="200" value="100" />
-          <span id="bpmValue">100</span>
-        </label>
+    <!-- 顶部控制：BPM / 音量 / 重开 -->
+    <div class="control-card">
+      <div class="controls">
+        <div class="control-row">
+          <div class="settings-container">
+            <button id="settingsToggle" class="settings-btn" aria-haspopup="true" aria-expanded="false">⚙️ 设置</button>
+            <div id="settingsMenu" class="settings-menu" hidden>
+              <div class="settings-menu-header">全局设置</div>
+              <div class="settings-grid">
+                <div class="control-block">
+                  <label>
+                    BPM
+                    <input id="bpmSlider" type="range" min="60" max="200" value="100" />
+                    <span id="bpmValue">100</span>
+                  </label>
+                </div>
+
+                <div class="control-block">
+                  <label>
+                    音量
+                    <input id="volumeSlider" type="range" min="0" max="100" value="50" />
+                    <span id="volumeValue">50%</span>
+                  </label>
+                </div>
+
+                <div class="control-block">
+                  <label>
+                    涟漪动画
+                    <select id="rippleQualitySelect">
+                      <option value="high">高质量</option>
+                      <option value="balanced">均衡</option>
+                      <option value="performance">性能优先</option>
+                      <option value="off">关闭</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div class="control-block smart-ratio">
+                  <label>
+                    智能随机 · 保留 Pluck
+                    <input id="smartRatioInput" type="range" min="0" max="100" value="66" />
+                    <span id="smartRatioValue">66%</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="theme-container">
+            <button id="themeMenuToggle" class="settings-btn" aria-haspopup="true" aria-expanded="false">🎨 主题</button>
+            <div id="themeMenu" class="settings-menu theme-menu" hidden>
+              <div class="settings-menu-header">选择主题</div>
+              <div class="theme-options">
+                <button class="theme-option" data-theme="default">深空</button>
+                <button class="theme-option" data-theme="aurora">暮光</button>
+                <button class="theme-option" data-theme="lavender">雾紫</button>
+                <button class="theme-option" data-theme="olive">复古</button>
+                <button class="theme-option" data-theme="brandblue">品牌蓝</button>
+              </div>
+            </div>
+          </div>
+          <div class="control-block">
+            <label>
+              棋盘 / 循环
+              <select id="boardSizeSelect">
+                <option value="16x16">16×16 · 1 小节</option>
+                <option value="32x32">32×32 · 2 小节</option>
+                <option value="64x32">64×32 · 4 小节</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="control-block">
+            <label>
+              缩放
+              <input id="boardScaleSlider" type="range" min="50" max="200" value="100" />
+              <span id="boardScaleValue">100%</span>
+            </label>
+          </div>
+
+          <button id="globalRandomAudioBtn">🎲 全局随机音色</button>
+          <button id="smartRandomAudioBtn">🤖 智能随机</button>
+          <div class="control-block timer-block">
+            <label>
+              计时模式
+              <input id="timerModeToggle" type="checkbox" />
+            </label>
+            <span id="timerDisplay">00:00.0</span>
+          </div>
+          <div class="control-block">
+            <label>
+              概率模式
+              <input id="probabilityToggle" type="checkbox" />
+            </label>
+          </div>
+          <button onclick="restartGame()">重新开始</button>
+          <button id="howToPlayBtn" class="text-btn">玩法说明</button>
+        </div>
       </div>
-
-      <div class="control-block">
-        <label>
-          音量
-          <input id="volumeSlider" type="range" min="0" max="100" value="50" />
-          <span id="volumeValue">50%</span>
-        </label>
-      </div>
-
-      <div class="control-block">
-        <label>
-          棋盘 / 循环
-          <select id="boardSizeSelect">
-            <option value="16x16">16×16 · 1 小节</option>
-            <option value="32x32">32×32 · 2 小节</option>
-            <option value="64x32">64×32 · 4 小节</option>
-          </select>
-        </label>
-      </div>
-
-      <div class="control-block">
-        <label>
-          缩放
-          <input id="boardScaleSlider" type="range" min="50" max="200" value="100" />
-          <span id="boardScaleValue">100%</span>
-        </label>
-      </div>
-
-      <div class="control-block">
-        <label>
-          涟漪动画
-          <select id="rippleQualitySelect">
-            <option value="high">高质量</option>
-            <option value="balanced">均衡</option>
-            <option value="performance">性能优先</option>
-            <option value="off">关闭</option>
-          </select>
-        </label>
-      </div>
-
-      <button id="globalRandomAudioBtn">🎲 全局随机音色</button>
-      <button id="smartRandomAudioBtn">🤖 智能随机（≥2/3 Pluck）</button>
-      <button onclick="restartGame()">重新开始</button>
-      <button id="howToPlayBtn" class="text-btn">玩法说明</button>
     </div>
-  </div>
 
-  <!-- 扫雷棋盘 -->
-  <div id="app"></div>
+    <!-- 扫雷棋盘 -->
+    <div class="board-card">
+      <div id="app"></div>
+    </div>
 
-  <!-- 音色与效果控制面板 -->
-  <div class="sound-panel">
-    <h2>音色与效果</h2>
-    
-    <!-- 参数保存/加载/重置按钮 -->
-    <div class="params-control">
-      <button id="saveParamsBtn" class="param-btn save-btn">💾 保存参数</button>
+    <!-- 音色与效果控制面板 -->
+    <div class="sound-panel">
+      <h2>音色与效果</h2>
+      
+      <!-- 参数保存/加载/重置按钮 -->
+      <div class="params-control">
+        <button id="saveParamsBtn" class="param-btn save-btn">💾 保存参数</button>
       <button id="loadParamsBtn" class="param-btn load-btn">📂 加载参数</button>
       <button id="resetParamsBtn" class="param-btn reset-btn">🔄 重置为默认</button>
     </div>
@@ -165,6 +211,7 @@
       </div>
 
     </div>
+    </div>
   </div>
 
   <!-- 玩法说明弹层 -->
@@ -181,10 +228,10 @@
           <li>插旗的格子按行高播放音符（顶部音高，底部音低）。</li>
           <li>再次左键已插旗可切换“禁播”（显示 🚫），禁播不发声且不触发涟漪。</li>
           <li>行号左侧小三角：选择预置/上传音色，🎲 随机该行，⟳ 重置回合成器。</li>
-          <li>标题栏的“全局随机”与“智能随机”可快速分配行音色（智能随机保证 ≥2/3 行保留合成器）。</li>
+          <li>标题栏的“全局随机”与“智能随机”可快速分配行音色。</li>
           <li>“涟漪动画”可调节视觉负载，性能不足可选“性能优先”或关闭。</li>
         </ul>
-        <p><strong>移动端提示：</strong> 长按可触发右键插旗，点击可翻开（取决于设备/浏览器）；如遇音频受限，请先任意点击解锁音频。</p>
+        <p><strong>移动端提示：</strong> 长按可触发右键插旗，点击可翻开（取决于设备/浏览器）；如遇音频受限，请先任意点击解锁音频，或检查是否开放浏览器权限
       </div>
       <div class="howto-footer">
         <button id="howToCloseBtn2" class="primary-btn" onclick="hideHowTo()">我知道了</button>
